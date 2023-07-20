@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import 'package:moneymate/screens/0_common/utility.dart';
 import 'package:moneymate/screens/1_screen/pay_info.dart';
 import 'package:moneymate/screens/1_screen/weekly_plan.dart';
+import 'package:moneymate/screens/1_screen/expense_list.dart';
 
 import '../../models/cash_flow_model.dart';
 import '../../models/user_info_model.dart';
@@ -30,6 +31,7 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
   late Widget _payInfoWidget;
   late Widget _weekPlanWidget;
   late Widget _monthPlanWidget;
+  late Widget _expenseListWidget;
 
   late AnimationController _animationController;
   late Animation<double> _animation;
@@ -101,6 +103,8 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
           gYear: _selectedDate.year,
           gMonth: _selectedDate.month
         );
+
+        _expenseListWidget = ExpensesList();
   }
 
   /* 월 변경하기 */
@@ -268,6 +272,8 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
                       _weekPlanWidget,
                       const SizedBox(height: 20),
                       _monthPlanWidget,
+                      const SizedBox(height: 20),
+                      _expenseListWidget
                     ],
                   ),
                 ),

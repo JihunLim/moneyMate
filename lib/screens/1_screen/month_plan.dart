@@ -118,8 +118,12 @@ class _MonthlyExpenseCalendarState extends State<MonthlyExpenseCalendar> {
                 selectedDayPredicate: (day) => isSameDay(_selectedDay, day),
                 onDaySelected: (selectedDay, focusedDay) {
                   setState(() {
-                    //_selectedDay = selectedDay;
+                    _selectedDay = selectedDay;
                     //_focusedDay = focusedDay;
+
+                    // 선택한 날짜에 대한 소비 내역을 가져옵니다.
+                    cashFlowController?.getExpensesForSelectedDay(uId, _selectedDay!);
+                    // 가져온 소비 내역을 화면에 표시하는 로직을 여기에 추가합니다.
                   });
                 },
                 
@@ -151,7 +155,7 @@ class _MonthlyExpenseCalendarState extends State<MonthlyExpenseCalendar> {
                   },
                   todayBuilder: (context, date, focusedDay) {
                     return Container(
-                      color: const Color.fromARGB(255, 240, 218, 225),
+                      color: const Color.fromARGB(255, 211, 225, 241),
                       child: Align(
                         alignment: Alignment.topLeft,
                         child: Padding(
@@ -169,12 +173,36 @@ class _MonthlyExpenseCalendarState extends State<MonthlyExpenseCalendar> {
                   markerBuilder: (context, date, events) {
                     return _buildExpenseCell(date);
                   },
+                  selectedBuilder: (context, date, _) {
+                    return Container(
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        border: Border.all(
+                          color: const Color.fromARGB(255, 1, 110, 98),
+                          width: 3,
+                        ),
+                      ),
+                      child: Align(
+                        alignment: Alignment.topLeft,
+                        child: Padding(
+                          padding: const EdgeInsets.all(4.0),
+                          child: Text(
+                            '${date.day}',
+                            style: const TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
+                          ),
+                        ),
+                      ),
+                    );
+                  },
                 ),
                 calendarStyle: const CalendarStyle(
                   outsideDaysVisible: false,
                   markersAlignment: Alignment.bottomCenter,
                   defaultDecoration: BoxDecoration(),
                   todayDecoration: BoxDecoration(),
+                  selectedDecoration: BoxDecoration(
+                    
+                  ),
                 ),
                 headerStyle: const HeaderStyle(
                   formatButtonVisible: false,

@@ -18,6 +18,14 @@ class MoneyFlow2 {
   MoneyFlow2({required this.basDt, required this.amount, this.tag});
 }
 
+class CashFlowModel {
+  DateTime? basDtm;
+  double? amount;
+  String? tag;
+
+  CashFlowModel({required this.basDtm, required this.amount, this.tag});
+}
+
 class MoneyFlowM {
   DateTime? dateTime;
   int? amount;
@@ -47,6 +55,9 @@ class CashFlowController extends GetxController {
   final expensesM = <MoneyFlowM>[].obs; //리스트로 선언
   final expensesD = <MoneyFlow>[].obs; //리스트로 선언
   final expensesW = <MoneyFlow2>[].obs; //리스트로 선언
+  final expenses_list = <CashFlowModel>[].obs;
+ final expenses_list_date = DateTime.now().obs;
+
   RxDouble monthAmount = 0.0.obs;
   RxString monthTag = ''.obs;
 
@@ -374,6 +385,31 @@ class CashFlowController extends GetxController {
     } catch (e) {
       print('Error saving month amount and tag: $e');
     }
+  }
+
+  // 선택된 날짜에 해당하는 소비 내역 반환
+  Future<void> getExpensesForSelectedDay(String userId, DateTime selectedDay) async {
+    List<CashFlowModel> selectedDayExpenses = [];
+
+    final DateFormat formatter = DateFormat("yyyyMMdd");
+    final String formattedSelectedDay = formatter.format(selectedDay);
+
+    try {
+      QuerySnapshot querySnapshot = await firestore.collection('users').doc(userId).collection('payment').doc(formattedSelectedDay).collection('data').get();
+
+      for (var doc in querySnapshot.docs) {
+        Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
+        double dayAmount = data['dayAmount'] ?? 0.0;
+        String dayTag = data['dayTag']?.isEmpty ?? true ? '기타' : data['dayTag']!;
+        
+
+        selectedDayExpenses.add(CashFlowModel(basDtm: selectedDay, amount: dayAmount, tag: dayTag));
+      }
+    } catch (e) {
+      print('Error getting day amount and tag: $e');
+    }
+    expenses_list_date.value = selectedDay;
+    expenses_list.assignAll(selectedDayExpenses);
   }
 
 /* 3월의 소비 내역을 가져오기
