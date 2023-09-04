@@ -1,0 +1,187 @@
+import 'package:flutter/material.dart';
+import 'package:get/get.dart';
+import 'package:moneymate/screens/0_common/utility.dart';
+import 'package:moneymate/screens/1_screen/pay_info.dart';
+import 'package:moneymate/screens/1_screen/weekly_plan.dart';
+
+import '../../models/cash_flow_model.dart';
+import '../../models/user_info_model.dart';
+
+class DashboardScreen extends StatefulWidget {
+  const DashboardScreen({super.key});
+
+  @override
+  State<DashboardScreen> createState() => _DashboardScreenState();
+}
+
+class _DashboardScreenState extends State<DashboardScreen> {
+
+  UserInfoController? userInfoController;
+  CashFlowController? cashFlowController;
+
+  UserInfo? user;
+  MoneyFlow? cashFlow;
+  final DateTime _selectedDate = DateTime.now();
+  //주 구하기. 
+  int weekCount = 0;
+  int monthTotalAmt = 0;
+
+  late final Widget _payInfoWidget;
+  late final Widget _weekPlanWidget;
+  
+  @override
+  void initState() {
+    super.initState();
+
+    //Get.put(UserInfoController);
+    //Get.put(CashFlowController);
+
+    userInfoController = Get.find<UserInfoController>();
+    cashFlowController = Get.find<CashFlowController>();
+
+    weekCount = (_selectedDate.day / 7).ceil();
+
+    user = userInfoController!.getUserInfo();
+    print('***User ID: ${user!.uID}');
+
+    //cashFlowController!.getExpensesByMonth(user!.uID!, _selectedDate.year, _selectedDate.month);
+    //cashFlowController!.getPurposeByMonth(user!.uID!, _selectedDate.year, _selectedDate.month);
+
+  }
+
+  Future<void> loadData() async {
+    await cashFlowController!.getExpensesByMonth(user!.uID!, _selectedDate.year, _selectedDate.month);
+    await cashFlowController!.getPurposeByMonth(user!.uID!, _selectedDate.year, _selectedDate.month);
+
+    monthTotalAmt = cashFlowController!.monthTotalAmount.value;
+
+    /* 소비목표정보(pay_info) 위젯 가져오기 */
+    _payInfoWidget = PayInfoWidget(
+      gnMonth: _selectedDate.month,
+      gsPayinfo: "${cashFlowController!.monthTotalAmount.value.ceil()}",
+      gsGoalinfo: "${cashFlowController!.monthAmount.value.ceil()}",
+      gnPercent: 0, //위젯 내 자체 계산
+    );
+
+    _weekPlanWidget =  WeekPlanWidget(
+      gnMonth: _selectedDate.month,
+      gsPayinfo: "500000",
+      gsGoalinfo: "1000000",
+      gnPercent: 50,
+    );
+
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder(
+      future: loadData(),
+      builder: (BuildContext context, AsyncSnapshot snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        } else {
+          // 여기서 UI 구성을 위한 위젯을 작성하십시오.
+          // 원래의 build 메서드의 body 부분을 여기로 이동하십시오.
+          return Scaffold(
+                backgroundColor: Colors.grey[100],
+                appBar: AppBar(
+                  elevation: 0,
+                  backgroundColor: Colors.grey[100],
+                  title: const Text(
+                    "MoneyMind",
+                    style: TextStyle(
+                      color: Colors.black,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  actions: [
+                    IconButton(
+                      onPressed: () {},
+                      icon: const Icon(Icons.notifications_none),
+                      color: Colors.black,
+                    ),
+                    IconButton(
+                      onPressed: () {},
+                      icon: const Icon(Icons.settings),
+                      color: Colors.black,
+                    ),
+                  ],
+                ),
+                body: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 5,
+                      ),
+                      child: Row(
+                        children: [
+                          Text(
+                            "${_selectedDate.month}월 ",
+                            style: TextStyle(
+                              fontSize: 40,
+                              fontWeight: FontWeight.bold,
+                              fontFamily: "Pacifico",
+                              shadows: [
+                                Shadow(
+                                  offset: const Offset(3, 3),
+                                  blurRadius: 6,
+                                  color: Colors.blueGrey.withOpacity(0.5),
+                                ),
+                              ],
+                            ),
+                          ),
+                        Transform.translate(
+                          offset: const Offset(0, 10),
+                          child: const Text(
+                            "목표소비 잔액",
+                            style: TextStyle(
+                              fontSize: 25,
+                              fontWeight: FontWeight.bold,
+                              fontFamily: "Montserrat",
+                            ),
+                          ),
+                        ),
+                        ],
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 20,
+                      ),
+                      child: Text(
+                        "￦ ${formatNumberWithComma(cashFlowController!.monthAmount.value.ceil())}",
+                        style: const TextStyle(
+                          fontSize: 32,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.teal,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                    Expanded(
+                      child: ListView(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 8,
+                        ),
+                        children: [
+                          /* 지출목표 위젯 Insert */
+                          _payInfoWidget,
+                          const SizedBox(height: 20),
+                          /* Weekly Plan 위젯 Insert */
+                          _weekPlanWidget,
+                        ]
+                      ),
+                    ),
+                  ],
+                ),
+              );
+
+        }
+      },
+    );
+    
+  }
+}
