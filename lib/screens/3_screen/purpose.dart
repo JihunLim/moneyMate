@@ -39,7 +39,8 @@ class _PurposeSetScreenState extends State<PurposeSetScreen> {
             ],
           ),
         ),
-        actions: [
+        actions: const [
+          /*
           IconButton(
             onPressed: () {},
             icon: const Icon(Icons.notifications_none),
@@ -50,6 +51,7 @@ class _PurposeSetScreenState extends State<PurposeSetScreen> {
             icon: const Icon(Icons.settings),
             color: Colors.black,
           ),
+          */
         ],
       ),
       body: Column(

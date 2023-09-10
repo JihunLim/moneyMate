@@ -1,12 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:logger/logger.dart';
 import 'package:moneymate/screens/0_common/utility.dart';
 import 'package:moneymate/screens/1_screen/pay_info.dart';
 import 'package:moneymate/screens/1_screen/weekly_plan.dart';
 import 'package:moneymate/screens/1_screen/expense_list.dart';
+import 'package:moneymate/screens/4_screen/setting.dart';
 
 import '../../models/cash_flow_model.dart';
 import '../../models/user_info_model.dart';
+import '../5_screen/connect_room_board.dart';
 import 'month_plan.dart';
 
 class DashboardScreen extends StatefulWidget {
@@ -35,6 +38,10 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
 
   late AnimationController _animationController;
   late Animation<double> _animation;
+
+  var logger = Logger(
+    printer: PrettyPrinter(),
+  );
   
   @override
   void initState() {
@@ -49,7 +56,7 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
     weekCount = (_selectedDate.day / 7).ceil();
 
     user = userInfoController!.getUserInfo();
-    print('***User ID: ${user!.uID}');
+    logger.d('***User ID: ${user!.uID}');
 
     //cashFlowController!.getExpensesByMonth(user!.uID!, _selectedDate.year, _selectedDate.month);
     //cashFlowController!.getPurposeByMonth(user!.uID!, _selectedDate.year, _selectedDate.month);
@@ -68,7 +75,7 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
 
   loadData() async{
     setState(() {
-      print("*** 조회 월 정보 : ${_selectedDate.toString()}");
+      logger.d("*** 조회 월 정보 : ${_selectedDate.toString()}");
 
       cashFlowController!.getExpensesByMonth(user!.uID!, _selectedDate.year, _selectedDate.month); //expensesMap 사용가능
       cashFlowController!.getPurposeByMonth(user!.uID!, _selectedDate.year, _selectedDate.month);
@@ -105,6 +112,8 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
         );
 
         _expenseListWidget = ExpensesList();
+        // 선택한 날짜에 대한 소비 내역을 가져옵니다.
+        cashFlowController?.getExpensesForSelectedDay(user!.uID!, _selectedDate);
   }
 
   /* 월 변경하기 */
@@ -122,6 +131,9 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
 
   @override
   Widget build(BuildContext context) {
+    String? code = userInfoController!.getUserInfo().uID;
+    String? title = userInfoController!.getUserInfo().userName;
+
     /* Load Widgets data */
     loadWidgetData();
 
@@ -145,17 +157,44 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
                   fontWeight: FontWeight.bold,
                 ),
               ),
+              if (code?.startsWith('MF') ?? false) 
+                TextSpan(
+                  text: ' for $title',
+                  style:  TextStyle(
+                    color: Colors.lightBlue[900],
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
             ],
           ),
         ),
         actions: [
           IconButton(
-            onPressed: () {},
-            icon: const Icon(Icons.notifications_none),
+            onPressed: () async{
+              var result = await Get.to(() => const ConnectRoomScreen());
+              if (result == 'Updated') {
+                setState(() {
+                  // 여기에 업데이트 로직을 추가
+                  user = userInfoController!.getUserInfo();
+                  print('>>>User ID: ${user!.uID}');
+                  loadData();
+                });
+              }
+              // Navigator.push(
+              //   context,
+              //   MaterialPageRoute(builder: (context) => const ConnectRoomScreen()), // NewScreen은 이동하려는 화면의 위젯입니다.
+              // );
+            },
+            icon: const Icon(Icons.ballot_outlined),
             color: Colors.black,
           ),
           IconButton(
-            onPressed: () {},
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const SettingWidget()), // NewScreen은 이동하려는 화면의 위젯입니다.
+              );
+            },
             icon: const Icon(Icons.settings),
             color: Colors.black,
           ),
@@ -174,7 +213,7 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
               children: [
                 Padding(
                   padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
+                    horizontal: 2,
                     vertical: 5,
                   ),
                   child: Row(
@@ -188,15 +227,39 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
                       Expanded(
                         child: Row(
                           children: [
-                            Text(
-                              "${_selectedDate.month}월 ",
+                            RichText(
+                              text: TextSpan(
+                                children: <TextSpan>[
+                                  TextSpan(
+                                    text: "${_selectedDate.year}.",
+                                    style: const TextStyle(
+                                      fontSize: 25,
+                                      fontWeight: FontWeight.bold,
+                                      fontFamily: "Pacifico",
+                                      color: Colors.black,  // 원하는 기본색을 선택하세요.
+                                    ),
+                                  ),
+                                  TextSpan(
+                                    text: _selectedDate.month.toString().padLeft(2, '0'),
+                                    style:  TextStyle(
+                                      fontSize: 25,
+                                      fontWeight: FontWeight.bold,
+                                      fontFamily: "Pacifico",
+                                      color: Colors.lightBlue[900],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            )
+                            /*Text(
+                              "${_selectedDate.year}.${_selectedDate.month.toString().padLeft(2, '0')}",
                               style: const TextStyle(
                                 fontSize: 25,
                                 fontWeight: FontWeight.bold,
                                 fontFamily: "Pacifico",
                               ),
-                            ),
-                            Transform.translate(
+                            ),*/
+                            /*Transform.translate(
                               offset: const Offset(0, 4),
                               child: Text(
                                 "소비정보",
@@ -207,7 +270,7 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
                                   color: Colors.lightBlue[900],
                                 ),
                               ),
-                            ),
+                            ),*/
                           ],
                         ),
                       ),
@@ -285,3 +348,4 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
     );
   } // End build
 }
+

@@ -1,3 +1,4 @@
+
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
@@ -5,6 +6,10 @@ import 'package:flutter_facebook_auth/flutter_facebook_auth.dart';
 import 'package:get/get.dart';
 import 'package:logger/logger.dart';
 import 'package:moneymate/screens/0_common/home_screen.dart';
+import 'package:moneymate/screens/0_common/utility.dart';
+import 'package:moneymate/screens/4_screen/email_verification.dart';
+import 'package:moneymate/screens/4_screen/password_reset.dart';
+import 'package:moneymate/signup_screen.dart';
 
 import 'models/user_info_model.dart';
 
@@ -21,6 +26,15 @@ class LoginScreen extends StatefulWidget {
 
 class _LoginScreenState extends State<LoginScreen> {
   final FirebaseAuth _auth = FirebaseAuth.instance;
+
+  final TextEditingController _emailController = TextEditingController();
+  final TextEditingController _passwordController = TextEditingController();
+  String? _errorMessage;
+  String? _emailError;
+
+  bool isLoading = false; // 로딩상태 추가
+  bool showResendEmailButton = false;
+  bool showPasswordResetButton = false;  
 
   var logger = Logger(
     printer: PrettyPrinter(),
@@ -43,6 +57,8 @@ class _LoginScreenState extends State<LoginScreen> {
     //listenFCM();
     // Get device's notification token
     getToken();
+    //자동 로그인 설정
+    checkLoginStatus();
   }
 
   void getToken() async {
@@ -159,51 +175,285 @@ class _LoginScreenState extends State<LoginScreen> {
     return await _auth.signInWithCredential(credential);
   }
   */
+
+  /// 자동 로그인 함수
+  Future<void> checkLoginStatus() async {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      // Firebase 사용자 상태 확인
+      User? user = _auth.currentUser;
+      if (user != null) {
+        // 이미 로그인한 상태
+        if (user.emailVerified) {
+          // 이메일이 인증된 경우
+          //사용자 정보 저장
+          userInfoController!.setUserInfo(user.uid, "", user.email!); //userCredential.user.email _emailController.text
+          Get.offAll(() => const HomeScreenWidget());
+        } else {
+          // 이메일이 인증되지 않은 경우
+          showToast("이메일 인증이 필요합니다.");
+        }
+      }
+    });
+    
+  }
+
+  /* Firebase 로그인 인증코드 재전송 */
+  Future<void> resendEmailVerification() async {
+    final user = _auth.currentUser;
+    if (user != null && !user.emailVerified) {
+      await user.sendEmailVerification();
+      showToast("인증 이메일을 다시 보냈습니다.");
+    }
+  }
+
+  /* Firebase 로그인 인증 함수 */
+  Future<User?> loginWithEmailPassword(String email, String password) async { // 2번 수정: 함수 추가
+    try {
+      UserCredential userCredential = await _auth.signInWithEmailAndPassword(
+        email: email,
+        password: password,
+      );
+      logger.d("Login Success > $userCredential.user.email / $email"); //userCredential.user.email
+
+      return userCredential.user;
+    } catch (e) {
+      logger.d(e);
+      return null;
+    }
+  }
+
+  /* Firebase 로그인 인증 로그인 핸들러 */
+  Future<void> handleLogin() async {
+    //유효성 검사
+    if(!(chkPwdOk && chkEmailOk)) return;
+
+    final user = await loginWithEmailPassword(_emailController.text, _passwordController.text);
+    
+    if (user != null) {
+      if (user.emailVerified) {
+        // 이메일이 인증된 경우
+        //사용자 정보 저장
+        userInfoController!.setUserInfo(user.uid, "", user.email!); //userCredential.user.email _emailController.text
+        //showToast("로그인에 성공하였습니다.");
+        Get.offAll(() => const HomeScreenWidget());
+      } else {
+        // 이메일이 인증되지 않은 경우
+        setState(() {
+          _errorMessage = "이메일 인증을 진행해야 로그인이 가능합니다.";
+          showResendEmailButton = true;
+          showToast("이메일 인증이 필요합니다.");
+        });
+      }
+    } else {
+      // 로그인 실패
+      setState(() {
+        _errorMessage = "로그인에 실패하였습니다. 이메일과 비밀번호를 확인해주세요.";
+        showPasswordResetButton = true;
+      });
+    }
+}
+
+
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       home: Scaffold(
-        appBar: AppBar(title: const Text('Login MoneyMind')),
-        body: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              ElevatedButton(
-                onPressed: () async {
-                  //final user = await signInWithGoogle();
-                  // if (user != null) {
-                  //   print('Google 로그인 성공: ${user.user!.displayName}');
-                  // }
-                },
-                child: const Text('Google로 로그인'),
+        appBar: AppBar(
+          title: const Text(
+            '머니메이트 로그인',
+            style: TextStyle(color: Colors.black, fontSize: 17, fontWeight: FontWeight.normal),
+          ),
+          backgroundColor: const Color.fromRGBO(236, 228, 215, 1.0),
+          elevation: 0.0,
+        ),
+        body: Container(
+          decoration: const BoxDecoration(
+            image: DecorationImage(
+              image: AssetImage('images/background.png'),
+              fit: BoxFit.cover,
               ),
-              ElevatedButton(
-                onPressed: () async {
-                  final userInfo = await signInWithFacebook();
-                  if (userInfo != null) {
-                    logger.d('Facebook 로그인 성공: ${userInfo.user!.displayName}');
-                    logger.d('Facebook 로그인 UID: ${userInfo.user!.uid}');
-                    //사용자 정보 저장
-                    userInfoController!.setUserInfo(userInfo.user!.uid, userInfo.user!.displayName!, userInfo.user!.uid);
-
-                    // go next page
-                    Navigator.push(context, 
-                      MaterialPageRoute(
-                        builder: (context) => const HomeScreenWidget(),
+          ),
+          alignment: Alignment.bottomLeft,  // 이 줄을 추가하여 왼쪽 아래에 위젯을 배치합니다.
+          padding: const EdgeInsets.only(left: 40, top: 0, bottom: 0, right: 40),  // 왼쪽 및 아래쪽 패딩을 추가하여 버튼 위치 조정
+          child: isLoading ? const Center(child: CircularProgressIndicator()) // 로딩 중이면 인디케이터 표시
+          : Center(
+              child: Container(
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.95),
+                  border: Border.all(color: Colors.blue),
+                ),
+                padding: const EdgeInsets.all(20.0),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.center,  // 왼쪽으로 정렬
+                  children: [
+                  TextFormField(
+                          controller: _emailController,
+                          decoration: InputDecoration(
+                            labelText: "이메일",
+                            hintText: "이메일을 입력하세요",
+                            helperText: "사용가능한 이메일 주소를 입력해주세요.",
+                            errorText: _emailError,
+                          ),
+                          onChanged: (value) {
+                             if (!isValidEmail(value)) {
+                              setState(() {
+                                _emailError = "올바른 이메일 주소를 입력해주세요.";
+                              });
+                            }else{
+                              setState(() {
+                                _emailError = null;
+                              });
+                            } 
+                          }
                         ),
-                    );
-                  }
-                },
-                child: const Text('Facebook으로 로그인'),
+                        const SizedBox(height: 10),
+                        TextFormField(
+                          controller: _passwordController,
+                          obscureText: true,
+                          decoration: const InputDecoration(
+                            labelText: "비밀번호",
+                            hintText: "비밀번호를 입력하세요",
+                          ),
+                          onChanged: (value) {
+                            if (!validatePassword(value)) {
+                              setState(() {
+                                _errorMessage = "비밀번호는 영문과 숫자가 포함된 6자 이상이어야 합니다.";
+                                if(value.isEmpty) _errorMessage = null;
+                              });
+                            }else{
+                              setState(() {
+                                _errorMessage = null;
+                              });
+                            } 
+                          },
+                        ),
+                        const SizedBox(height: 10),
+                        _errorMessage != null
+                            ? Text(
+                                _errorMessage!,
+                                style: TextStyle(color: Colors.amber[900]),
+                              )
+                            : Container(),
+                        const SizedBox(height: 15),
+                        ElevatedButton(
+                          onPressed: handleLogin, //로그인 구현 핸들러
+                          style: ElevatedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(horizontal: 20.0), backgroundColor: Colors.blueAccent[200], // 양 옆에 20.0만큼의 여백 추가
+                            minimumSize: const Size(double.infinity, 35), // 버튼의 배경색을 파란색으로 설정
+                          ),
+                          child: const Text('로그인',
+                            style:TextStyle(
+                              color: Colors.white,  // 텍스트 색상을 흰색으로
+                              fontWeight: FontWeight.bold,  // 텍스트를 두껍게
+                              fontSize: 17,
+                            ),
+                          )
+                        ),
+                        TextButton(
+                          onPressed: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => const SignUpScreen(),
+                              ),
+                            );
+                          },
+                          child: Text(
+                            '회원가입하러 가기',
+                            style: TextStyle(color: Colors.blueAccent[200]),
+                          ),
+                        ),
+                        const SizedBox(height: 5,),
+                        // /* 이메일 재전송 기능 */
+                        // if (showResendEmailButton) EmailVerificationButton(auth: _auth),
+                        // /* 비밀번호 재설정 기능 */
+                        // if (showPasswordResetButton) PasswordResetButton(auth: _auth, inputEmail: _emailController.text),
+
+                        Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            /* 이메일 재전송 기능 */
+                            if (showResendEmailButton) EmailVerificationButton(auth: _auth),
+                            /* 비밀번호 재설정 기능 */
+                            //const SizedBox(height: 5.0), 
+                            if (showPasswordResetButton) PasswordResetButton(auth: _auth, inputEmail: _emailController.text),
+                          ],
+                        )
+
+
+                          // TextButton(
+                          //   onPressed: resendEmailVerification,
+                          //   child: const Text("이메일 인증코드 재전송"),
+                          // ),
+                        
+                        
+                  /* 하단은 sns 로그인 구현 항목임 */
+                  //const Spacer(),
+                  /*
+                  ElevatedButton(
+                    onPressed: () async {
+                      //final user = await signInWithGoogle();
+                      // if (user != null) {
+                      //   print('Google 로그인 성공: ${user.user!.displayName}');
+                      // }
+                    },
+                    child: const Text('Google로 로그인'),
+                  ),
+                  
+                  ElevatedButton(
+                    onPressed: () async {
+                      //로딩바 켜기
+                      setState(() {
+                        isLoading = true; // 로딩 시작
+                      });
+                      
+                      //페이스북 로그인
+                      final userInfo = await signInWithFacebook();
+                        
+                      //로딩바 끄기
+                      setState(() {
+                          isLoading = false; // 로딩 종료
+                        });
+                        
+                      if (userInfo != null) {
+                        logger.d('Facebook 로그인 성공: ${userInfo.user!.displayName}');
+                        logger.d('Facebook 로그인 UID: ${userInfo.user!.uid}');
+                        //사용자 정보 저장
+                        userInfoController!.setUserInfo(userInfo.user!.uid, userInfo.user!.displayName!, userInfo.user!.uid);
+                    
+                        // go next page (뒤로가기 가능 버전)
+                        // Navigator.push(context, 
+                        //   MaterialPageRoute(
+                        //     builder: (context) => const HomeScreenWidget(),
+                        //     ),
+                        // );
+                        /* 뒤로가기 불가능 */
+                        // Navigator.pushReplacement(context, 
+                        //   MaterialPageRoute(
+                        //     builder: (context) => const HomeScreenWidget(),
+                        //   ),
+                        // );
+                        Get.offAll(() => const HomeScreenWidget());
+                      }
+                    },
+                    child: const Text('Facebook으로 로그인'),
+                  ),
+                  */
+                  /*
+                  ElevatedButton(
+                    onPressed: () async {
+                      //const user = "aa";//await signInWithPlayGames();
+                      //print('Play Games 로그인 성공: ${user.user!.displayName}');
+                    },
+                    child: const Text('Play Games로 로그인'),
+                  ),
+                  */
+                        
+                  //SizedBox(height: 20,),
+                ],
+                          ),
               ),
-              ElevatedButton(
-                onPressed: () async {
-                  //const user = "aa";//await signInWithPlayGames();
-                  //print('Play Games 로그인 성공: ${user.user!.displayName}');
-                },
-                child: const Text('Play Games로 로그인'),
-              ),
-            ],
           ),
         ),
       ),

@@ -1,11 +1,15 @@
+import 'dart:math';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:get/get.dart';
+import 'package:intl/intl.dart';
 import 'package:logger/logger.dart';
 
 import '../../models/cash_flow_model.dart';
 import '../../models/user_info_model.dart';
+import '../0_common/utility.dart';
 import 'month_picker.dart';
 
 class PurposeEnrollWidget extends StatefulWidget {
@@ -14,8 +18,8 @@ class PurposeEnrollWidget extends StatefulWidget {
   //final String gsGoalinfo;
   //final int gnPercent;
 
-  const PurposeEnrollWidget({super.key} );
-  
+  const PurposeEnrollWidget({super.key});
+
   @override
   State<PurposeEnrollWidget> createState() => PurposeEnrollWidgetState();
 
@@ -34,16 +38,18 @@ class PurposeEnrollWidgetState extends State<PurposeEnrollWidget> {
   final cashFlowController = Get.find<CashFlowController>();
   final userInfoController = Get.find<UserInfoController>();
 
+  late FocusNode myFocusNode;
+  late final  _amountController; // = TextEditingController();
+
   //final Widget datePickerWidget = const DatePickerWidget();
-  
+
   DateTime _selectedDate = DateTime.now();
   final GlobalKey<MonthPickerWidgetState> _monthPickerKey = GlobalKey();
 
-
   // set var...
-   final String androidTestId = 'ca-app-pub-6523753930426193/4625339787';
-   //test_id : ca-app-pub-3940256099942544/6300978111
-   //own_id  : ca-app-pub-6523753930426193/4625339787
+  final String androidTestId = 'ca-app-pub-6523753930426193/4625339787';
+  //test_id : ca-app-pub-3940256099942544/6300978111
+  //own_id  : ca-app-pub-6523753930426193/4625339787
   final _formKey = GlobalKey<FormState>();
 
   //BannerAd? banner;
@@ -52,18 +58,61 @@ class PurposeEnrollWidgetState extends State<PurposeEnrollWidget> {
     printer: PrettyPrinter(),
   );
 
-    @override
+  @override
   void initState() {
     super.initState();
     user = userInfoController.getUserInfo();
 
-    //_gnMonth = widget.gnMonth;
-    //_gsPayinfo = widget.gsPayinfo;
-    //_gsGoalinfo = widget.gsGoalinfo;
-    //_gnPercent = widget.gnPercent;
+    //초기화
+    myFocusNode = FocusNode();
+    _amountController = TextEditingController();
 
+    // 사용자가 입력할 때마다 이벤트를 수신
+    _amountController.addListener(_updateAmount);
     
   }
+
+  @override
+  void dispose() {
+    _amountController.removeListener(_updateAmount);
+    myFocusNode.dispose();
+    super.dispose();
+  }
+
+  // This function will handle the listener logic
+  void _updateAmount() {
+    String value = _amountController.text.replaceAll(',', '');
+    int? intValue = int.tryParse(value);
+    
+    if (intValue != null && intValue <= 999999999) {
+      String newFormattedValue = NumberFormat("#,###").format(intValue);
+      
+      // Compute how many commas are in the new and old text values
+      num commaDifference = newFormattedValue.split(',').length - _amountController.text.split(',').length;
+      
+      // Update cursor position based on the comma difference
+      final newCursorPosition = TextSelection(
+        baseOffset: min(_amountController.selection.start + commaDifference, newFormattedValue.length),
+        extentOffset: min(_amountController.selection.end + commaDifference, newFormattedValue.length),
+      );
+
+      // Remove listener, update text, and then add it back
+      _amountController.removeListener(_updateAmount);
+      _amountController.text = newFormattedValue;
+      _amountController.selection = newCursorPosition;
+      _amountController.addListener(_updateAmount);
+    } else if (intValue != null && intValue > 999999999) {
+      // Remove listener, update text to max value, and then add it back
+      _amountController.removeListener(_updateAmount);
+      _amountController.text = '999,999,999';
+      _amountController.selection = TextSelection.fromPosition(TextPosition(offset: _amountController.text.length));
+      _amountController.addListener(_updateAmount);
+      showToast("허용가능한 금액을 초과했습니다.");
+    }
+  }
+
+
+
 
   /*
   
@@ -172,22 +221,26 @@ class PurposeEnrollWidgetState extends State<PurposeEnrollWidget> {
       }
       */
 
-      if(user != null){
-        if(user!.uID != null){
+      if (user != null) {
+        if (user!.uID != null) {
           String uid = user!.uID!;
           String year = _selectedDate.year.toString();
           String month = _selectedDate.month.toString();
-          await cashFlowController.saveMonthAmountAndTag(uid, widrawAm.toDouble(), widrawTag, _selectedDate.year, _selectedDate.month);
+          await cashFlowController.saveMonthAmountAndTag(
+              uid,
+              widrawAm.toDouble(),
+              widrawTag,
+              _selectedDate.year,
+              _selectedDate.month);
           isSaved = true;
 
-          _showToast('목표가 저장되었습니다.');
+          showToast('목표가 저장되었습니다.');
         }
       }
 
-      if(!isSaved){
-        _showToast('문제가 발생했습니다. 버그가 수정되기 전까지 기다려주세요~');
+      if (!isSaved) {
+        showToast('문제가 발생했습니다. 버그가 수정되기 전까지 기다려주세요~');
       }
-
 
       /* go next page
       Navigator.push(context, 
@@ -199,12 +252,14 @@ class PurposeEnrollWidgetState extends State<PurposeEnrollWidget> {
     }
   }
 
-
-
-  Widget purposeEnrollWidget(){
+  Widget purposeEnrollWidget() {
     final Size screenSize = MediaQuery.of(context).size;
-    
-    return SizedBox(
+
+    return GestureDetector(
+      onTap: () {
+        FocusScope.of(context).unfocus();
+      },
+      child: SizedBox(
         height: screenSize.height - 300,
         child: Container(
           decoration: const BoxDecoration(
@@ -221,117 +276,118 @@ class PurposeEnrollWidgetState extends State<PurposeEnrollWidget> {
             children: [
               const SizedBox(width: 5),
               Expanded(
-                  child: Stack(
-                    children: [
-                      const SizedBox(height: 10),
-                      Container(
-                        //height: screenSize.height,
-                        padding: const EdgeInsets.all(20.0),
-                        child: Form(
-                          key: _formKey,
-                          child: Column(
-                            children:  <Widget>[
-                              /* 입력 폼 시작 */
-                                  const SizedBox(
-                                    height: 10,
-                                  ),
-                                  // 월 선택하기 
-                                  MonthPickerWidget(key: _monthPickerKey),
-                                  const SizedBox(
-                                    height: 30,
-                                  ),
-                                  TextFormField(
-                                    keyboardType: TextInputType.number,
-                                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                                    obscureText: false,
-                                    decoration: const InputDecoration(
-                                      border: OutlineInputBorder(),
-                                      //hintText: '',
-                                      labelText: '월 목표금액',
-                                      //helperText: '',
-                                    ),
-                                    //initialValue: '60',
-                                    //validator: _validateWorkTime,
-                                    onSaved: (String? value) {
-                                      int tmp = int.parse(value!);
-                                      widrawAm = tmp;
-                                      //_data.workTime = tmp * 60;
-                                    }
-                                  ),
-                                  const SizedBox(
-                                    height: 30,
-                                  ),
-                                  TextFormField(
-                                    keyboardType: TextInputType.text,
-                                    //inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                                    obscureText: false,
-                                    decoration: const InputDecoration(
-                                      border: OutlineInputBorder(),
-                                      //hintText: '',
-                                      labelText: '다짐글 적기',
-                                      //helperText: '',
-                                    ),
-                                    //initialValue: '10',
-                                    //validator: _validateRestTime,
-                                    onSaved: (String? value) {
-                                      widrawTag = (value != null) ? value : '기타';
-                                      //_data.restTime = tmp * 60;
-                                    }
-                                  ),
-                                  const SizedBox(
-                                    height: 40,
-                                  ),
-                                  Container(
-                                    width: screenSize.width-100,
-                                    margin: const EdgeInsets.only(
-                                      top: 20.0
-                                    ),
-                                    child: ElevatedButton(
-                                      onPressed: (){submit(context);},
-                                      style: ElevatedButton.styleFrom(
-                                          padding: const EdgeInsets.symmetric(
-                                              horizontal: 25.0, vertical: 10.0), backgroundColor: Colors.teal[500],
-                                          shape: const StadiumBorder(),
-                                        ),
-                                      child: const Text(
-                                        '저장하기',
-                                        style: TextStyle(
+                child: Stack(
+                  children: [
+                    const SizedBox(height: 10),
+                    Container(
+                      //height: screenSize.height,
+                      padding: const EdgeInsets.all(20.0),
+                      child: Form(
+                        key: _formKey,
+                        child: Column(
+                          children: <Widget>[
+                            /* 입력 폼 시작 */
+                            const SizedBox(
+                              height: 10,
+                            ),
+                            // 월 선택하기
+                            MonthPickerWidget(key: _monthPickerKey),
+                            const SizedBox(
+                              height: 30,
+                            ),
+                            TextFormField(
+                                controller: _amountController,
+                                keyboardType: TextInputType.number,
+                                focusNode: myFocusNode,
+                                inputFormatters: [
+                                  FilteringTextInputFormatter.digitsOnly
+                                ],
+                                obscureText: false,
+                                decoration: const InputDecoration(
+                                  border: OutlineInputBorder(),
+                                  //hintText: '',
+                                  labelText: '월 목표금액',
+                                  //helperText: '',
+                                ),
+                                //initialValue: '60',
+                                //validator: _validateWorkTime,
+                                onSaved: (String? value) {
+                                  int tmp = int.parse(value!.replaceAll(',', ''));
+                                  widrawAm = tmp;
+                                }),
+                            const SizedBox(
+                              height: 30,
+                            ),
+                            TextFormField(
+                                keyboardType: TextInputType.text,
+                                //inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                                obscureText: false,
+                                decoration: const InputDecoration(
+                                  border: OutlineInputBorder(),
+                                  //hintText: '',
+                                  labelText: '다짐글 적기',
+                                  //helperText: '',
+                                ),
+                                //initialValue: '10',
+                                //validator: _validateRestTime,
+                                onSaved: (String? value) {
+                                  widrawTag = (value != null) ? value : '기타';
+                                  //_data.restTime = tmp * 60;
+                                }),
+                            const SizedBox(
+                              height: 40,
+                            ),
+                            Container(
+                              width: screenSize.width - 100,
+                              margin: const EdgeInsets.only(top: 20.0),
+                              child: ElevatedButton(
+                                onPressed: () {
+                                  submit(context);
+                                },
+                                style: ElevatedButton.styleFrom(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 25.0, vertical: 10.0),
+                                  backgroundColor: Colors.teal[500],
+                                  shape: const StadiumBorder(),
+                                ),
+                                child: const Text(
+                                  '저장하기',
+                                  style: TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 20,
+                                      fontWeight: FontWeight.bold,
+                                      shadows: [
+                                        Shadow(
+                                          blurRadius: 5.0,
                                           color: Colors.white,
-                                          fontSize: 20,
-                                          fontWeight: FontWeight.bold,
-                                          shadows: [
-                                            Shadow(
-                                              blurRadius: 5.0,
-                                              color: Colors.white,
-                                              offset: Offset(0, 0),
-                                            )
-                                          ]
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                            ],
-                          ),
+                                          offset: Offset(0, 0),
+                                        )
+                                      ]),
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
                       ),
-                      const SizedBox(height: 10),
-                      /*Positioned(
-                        bottom: 0,
-                        child: SizedBox(
-                          width: screenSize.width,
-                          height: 55.0,
-                          child: AdWidget(ad: banner!),
-                        ),
-                      ), */
-                    ],
-                  ),
+                    ),
+                    const SizedBox(height: 10),
+                    /*Positioned(
+                            bottom: 0,
+                            child: SizedBox(
+                              width: screenSize.width,
+                              height: 55.0,
+                              child: AdWidget(ad: banner!),
+                            ),
+                          ), */
+                  ],
+                ),
               ),
             ],
           ),
         ),
-      );
+      ),
+    );
   }
-
 
   @override
   Widget build(BuildContext context) {

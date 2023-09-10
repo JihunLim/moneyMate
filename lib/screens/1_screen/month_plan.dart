@@ -3,6 +3,8 @@ import 'package:get/get.dart';
 import 'package:moneymate/models/cash_flow_model.dart';
 import 'package:table_calendar/table_calendar.dart';
 
+import '../0_common/utility.dart';
+
 class MonthlyExpenseCalendar extends StatefulWidget {
   String uId;
   Map<DateTime, int> expenses;
@@ -61,7 +63,7 @@ class _MonthlyExpenseCalendarState extends State<MonthlyExpenseCalendar> {
           Transform.translate(
             offset: const Offset(0, 10),
             child: Text(
-              (expense == 0) ? '' : expense.toString(),
+              (expense == 0) ? '' : formatNumberWithComma(expense).toString(),
               style: TextStyle(color: Colors.teal[900], fontWeight: FontWeight.normal, fontSize: 10),
             ),
           ),

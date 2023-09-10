@@ -22,8 +22,9 @@ class CashFlowModel {
   DateTime? basDtm;
   double? amount;
   String? tag;
+  String? timeStamp;
 
-  CashFlowModel({required this.basDtm, required this.amount, this.tag});
+  CashFlowModel({required this.basDtm, required this.amount, this.tag, this.timeStamp});
 }
 
 class MoneyFlowM {
@@ -294,7 +295,15 @@ class CashFlowController extends GetxController {
       date = date.add(const Duration(days: 1));
     }
 
+    // week별 데이터 가져오기
+    List<Future> futures = [];
+    for (final date in dates) {
+      futures.add(getWeekAmount(userId, date, year, month));
+    }
+    await Future.wait(futures);
+
     // 일자별 데이터 가져오기
+    /*
     for (final date in dates) {
       //print('*** Date > ${date.toString()}');
       double dayAmount = 0;
@@ -319,7 +328,37 @@ class CashFlowController extends GetxController {
         print('Error getting day amount and tag: $e');
       }
     }
+    */
+  }
 
+  Future<void> getWeekAmount(String userId, String date, int year, int month) async {
+    //print('*** Date > ${date.toString()}');
+    double dayAmount = 0;
+    String dayTag = "";
+    int chkYear = int.parse(date.substring(0, 4));
+    int chkMonth = int.parse(date.substring(4, 6));
+
+    //if(!(year == chkYear && month == chkMonth)) return; // 년월 정보 맞지 않을경우 braek
+
+    try {
+      QuerySnapshot querySnapshot = await firestore.collection('users').doc(userId).collection('payment').doc(date).collection('data').get();
+
+      // querySnapshot.docs는 해당 일자의 모든 'data' 문서를 포함한 리스트입니다.
+      for (var doc in querySnapshot.docs) {
+        // 각 문서의 데이터에 액세스하려면 doc.data()를 사용하세요.
+        Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
+        //print('*** Date > ${date.toString()} > data > ${data.toString()}');
+        dayAmount += data['dayAmount'] ?? 0.0;
+      }
+      weekTotalAmount.value += dayAmount.round();
+      dayTag = "합계";
+      //print('Date: ${date.toString()}, MonthTotalAmount: ${monthTotalAmount.value}, Day amount: $dayAmount, Day tag: $dayTag');
+      //주별 소비합계 금액 저장
+      expensesW.add(MoneyFlow2(basDt: date, amount: dayAmount, tag: dayTag));
+
+    } catch (e) {
+      print('Error getting day amount and tag: $e');
+    }
   }
 
 
@@ -366,7 +405,7 @@ class CashFlowController extends GetxController {
     }
   }
 
-  Future<void> saveDayAmountAndTag(String userId, double dayAmount, String dayTag, String baseDt) async {
+  Future<void> saveDayAmountAndTag(String userId, double dayAmount, String dayTag, String baseDt, String dateTime) async {
     try {
       //final String monthStr = '${year.toString().padLeft(4, '0')}${month.toString().padLeft(2, '0')}';
       /*
@@ -379,6 +418,7 @@ class CashFlowController extends GetxController {
       await firestore.collection('users').doc(userId).collection('payment').doc(baseDt).collection('data').add({
         'dayAmount': dayAmount, //일 목표금액
         'dayTag': dayTag, //일 목표
+        'timeStamp': dateTime, //타임스탬프
       });
 
       print('Month amount and tag saved successfully');
@@ -401,9 +441,10 @@ class CashFlowController extends GetxController {
         Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
         double dayAmount = data['dayAmount'] ?? 0.0;
         String dayTag = data['dayTag']?.isEmpty ?? true ? '기타' : data['dayTag']!;
+        String timeStamp = data['timeStamp']?.isEmpty ?? true ? '' : data['timeStamp']!;
         
 
-        selectedDayExpenses.add(CashFlowModel(basDtm: selectedDay, amount: dayAmount, tag: dayTag));
+        selectedDayExpenses.add(CashFlowModel(basDtm: selectedDay, amount: dayAmount, tag: dayTag, timeStamp: timeStamp));
       }
     } catch (e) {
       print('Error getting day amount and tag: $e');

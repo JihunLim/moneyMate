@@ -82,13 +82,14 @@ class _WeekPlanWidgetState extends State<WeekPlanWidget> {
     weekDates = [];
 
     DateTime startDate = _selectedDate.subtract(Duration(days: _selectedDate.weekday - 1));
+
+    //추가 : cashController에서 일주일치에 해당하는 금액 데이터를 가져올 수 있는 rx변수와 함수를 만들고, 여기에 선언.
+    cashFlowController?.getExpensesByWeek(_uID, startDate.year, startDate.month, startDate.day); //expensesW 사용 가능해짐.
+
     for (int i = 0; i < 7; i++) {
       weekDates.add(startDate.add(Duration(days: i)));
     }
 
-    //추가 : cashController에서 일주일치에 해당하는 금액 데이터를 가져올 수 있는 rx변수와 함수를 만들고, 여기에 선언.
-    cashFlowController?.getExpensesByWeek(_uID, startDate.year, startDate.month, startDate.day); //expensesW 사용 가능해짐.
-    
   }
 
   void changeWeek(int change) {
@@ -119,16 +120,23 @@ class _WeekPlanWidgetState extends State<WeekPlanWidget> {
     }
   }
 
-  Widget WeekPlanWidget(){
+  Widget weekPlanWidget(){
     return Obx(() {
         int weekTotalPayment = cashFlowController!.weekTotalAmount.value;
         List<MoneyFlow2> weekPayInfo = cashFlowController!.expensesW;
+
         List<int> weekPayment = [0,0,0,0,0,0,0];
 
-        for(int i=0; i < weekPayInfo.length; i++) {
-          if(i > 6) break;
-          int value = weekPayInfo[i].amount!.ceil();
-          weekPayment[i] = value;
+        // 1. weekPayInfo를 basDt 기반으로 정렬합니다.
+        weekPayInfo.sort((a, b) => a.basDt!.compareTo(b.basDt!));
+
+        for (var info in weekPayInfo) {
+          // 2. basDt로 요일 계산
+          final date = DateTime.parse(info.basDt!);
+          int weekdayIndex = date.weekday - 1; // 월요일: 0, 화요일: 1, ...
+
+          // 3. weekPayment에 값을 할당
+          weekPayment[weekdayIndex] = info.amount!.ceil();
         }
 
         //cashFlowController!.expensesW[0].amount!.ceil();
@@ -157,7 +165,7 @@ class _WeekPlanWidgetState extends State<WeekPlanWidget> {
                         Row(
                           children: [
                               Icon(
-                              Icons.edit_calendar_outlined,
+                              Icons.calendar_view_week_outlined,
                               color: Colors.teal[600],
                             ),
                             const SizedBox(width: 2),
@@ -450,6 +458,6 @@ class _WeekPlanWidgetState extends State<WeekPlanWidget> {
 
   @override
   Widget build(BuildContext context) {
-    return WeekPlanWidget();
+    return weekPlanWidget();
   }
 }

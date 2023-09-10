@@ -52,7 +52,8 @@ class _PaymentEnrollScreenState extends State<PaymentEnrollScreen> {
             ],
           ),
         ),
-        actions: [
+        actions: const [
+          /*
           IconButton(
             onPressed: () {},
             icon: const Icon(Icons.notifications_none),
@@ -63,6 +64,7 @@ class _PaymentEnrollScreenState extends State<PaymentEnrollScreen> {
             icon: const Icon(Icons.settings),
             color: Colors.black,
           ),
+          */
         ],
       ),
       body: Column(
