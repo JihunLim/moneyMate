@@ -23,8 +23,10 @@ class CashFlowModel {
   double? amount;
   String? tag;
   String? timeStamp;
+  String? docId;
+  String? memo;
 
-  CashFlowModel({required this.basDtm, required this.amount, this.tag, this.timeStamp});
+  CashFlowModel({required this.basDtm, required this.amount, this.tag, this.timeStamp, this.docId, this.memo});
 }
 
 class MoneyFlowM {
@@ -442,9 +444,10 @@ class CashFlowController extends GetxController {
         double dayAmount = data['dayAmount'] ?? 0.0;
         String dayTag = data['dayTag']?.isEmpty ?? true ? '기타' : data['dayTag']!;
         String timeStamp = data['timeStamp']?.isEmpty ?? true ? '' : data['timeStamp']!;
-        
+        String docId = doc.id;
+        String memo = data['memo']?.isEmpty ?? true ? '' : data['memo']!;
 
-        selectedDayExpenses.add(CashFlowModel(basDtm: selectedDay, amount: dayAmount, tag: dayTag, timeStamp: timeStamp));
+        selectedDayExpenses.add(CashFlowModel(basDtm: selectedDay, amount: dayAmount, tag: dayTag, timeStamp: timeStamp, docId: docId, memo: memo));
       }
     } catch (e) {
       print('Error getting day amount and tag: $e');
@@ -452,6 +455,32 @@ class CashFlowController extends GetxController {
     expenses_list_date.value = selectedDay;
     expenses_list.assignAll(selectedDayExpenses);
   }
+
+
+  // 선택된 날짜에 해당하는 소비 정보 삭제
+  Future<bool> deleteExpenseForSelectedDay(String userId, DateTime selectedDay, String docId) async {
+    final DateFormat formatter = DateFormat("yyyyMMdd");
+    final String formattedSelectedDay = formatter.format(selectedDay);
+
+    try {
+      await firestore.collection('users')
+          .doc(userId)
+          .collection('payment')
+          .doc(formattedSelectedDay)
+          .collection('data')
+          .doc(docId) // 삭제할 문서의 ID를 사용
+          .delete();
+
+      // 로컬 목록에서도 해당 정보 삭제
+      expenses_list.removeWhere((expense) => expense.basDtm == selectedDay && expense.tag == docId);
+      
+      return true;
+    } catch (e) {
+      print('Error deleting the expense: $e');
+      return false;
+    }
+  }
+
 
 /* 3월의 소비 내역을 가져오기
   onPressed: () async {

@@ -48,6 +48,9 @@ class UserInfoController extends GetxController {
 
   void setUserInfo(String uID, String userName, String userEmail) {
     userInfo.value = UserInfo(uID: uID, userName: userName, userEmail: userEmail);
+    if(!uID.startsWith("MF")){
+      originUID.value = uID;
+    }
   }
   
   /* 사용자의 컨넥팅룸 목록을 가져온다. */

@@ -41,7 +41,7 @@ class _ConnectRoomScreenState extends State<ConnectRoomScreen> {
   }
 
   void loadData() async {
-    await userInfoController!.fetchUserConnectRoomList(userInfoController!.getUserInfo().uID!);
+    await userInfoController!.fetchUserConnectRoomList(userInfoController!.originUID.value);
     List<String> sortedItems = userInfoController!.connectRoomList.map((roomInfo) => "${roomInfo.title}-${roomInfo.uid}").toList();
 
     sortedItems.sort((a, b) {
@@ -225,9 +225,6 @@ class _ConnectRoomScreenState extends State<ConnectRoomScreen> {
 
       insertConnectRoom(code, roomTitle, secretKey);
 
-      //나의 머니메이트도 생성(없으면...)
-      await addMyItem();
-
       setState(() {
         //items.insert(0, "${_controller.text}-$code"); //후입선출 방식
         items.add("${_controller.text}-$code");
@@ -235,6 +232,8 @@ class _ConnectRoomScreenState extends State<ConnectRoomScreen> {
 
       });
     }
+    //나의 머니메이트도 생성(없으면...)
+      await addMyItem();
 
   }
 
@@ -250,11 +249,14 @@ class _ConnectRoomScreenState extends State<ConnectRoomScreen> {
 
     if(!checkMyRoom){
       insertConnectRoom(code, roomTitle, secretKey);
-    }
-    setState(() {
+
+      //나의 머니메이트가 없을 경우에만 리스트에 추가
+      setState(() {
         //items.insert(0, "${_controller.text}-$code"); //후입선출 방식
         items.add("$roomTitle-$code");
     });
+    }
+    
   }
 
   /* 컨넥팅 쉐어 머니플로우 생성 위젯 */
@@ -365,8 +367,8 @@ class _ConnectRoomScreenState extends State<ConnectRoomScreen> {
           // Firebase에서 문서 제거
           // 사용자의 connect_room에서 목록제거
           await deleteFromFirebase(userInfoController!.originUID.value, code);
-          // user 정보 삭제
-          await deleteUserDocument(code);
+          // user 정보 삭제 
+          //await deleteUserDocument(code);
 
           //토스트 메시지
           ScaffoldMessenger.of(context).showSnackBar(SnackBar(
@@ -379,7 +381,7 @@ class _ConnectRoomScreenState extends State<ConnectRoomScreen> {
             title,
             style: const TextStyle(
               fontWeight: FontWeight.bold,  
-              fontSize: 18.0,  
+              fontSize: 16.0,  
             ),
           ),
           trailing: ("MF" != code.substring(0,2)) ? null
@@ -388,7 +390,7 @@ class _ConnectRoomScreenState extends State<ConnectRoomScreen> {
               constraints: const BoxConstraints(maxWidth: 100.0, maxHeight: 50.0),
               child: Text(code),
           ),
-          contentPadding: const EdgeInsets.all(10),
+          contentPadding: const EdgeInsets.all(5),
           tileColor: Colors.white,
           shape: RoundedRectangleBorder(
             side: const BorderSide(color: Colors.deepPurple, width: 2),

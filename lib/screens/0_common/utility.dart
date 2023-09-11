@@ -47,7 +47,7 @@ void showToast(String text) {
 bool chkPwdOk = false;
 bool validatePassword(String password) {
   // 비밀번호가 6자 이상이며 영문과 숫자를 포함해야 함
-  RegExp regex = RegExp(r'^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d]{6,}$');
+  RegExp regex = RegExp(r'^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d\S]{6,}$');
   if(regex.hasMatch(password)) chkPwdOk = true;
   return regex.hasMatch(password);
 }
